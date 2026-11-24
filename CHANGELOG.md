@@ -7,6 +7,14 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ---
 
+## [0.4.0]
+
+### Changed
+
+- Uses `hazard3-ssd1306-graphics` for the [Hazard3 project](https://github.com/jorgeandrecastro/Hazard3).
+
+---
+
 ## [0.3.1] — 2026-05-21
 
 ### Fixed

@@ -24,26 +24,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "embassy-ssd1306"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3dc38fb80d2710a47ea9a7b2a7692761c98469f610941af01236197c048eac27"
-dependencies = [
- "embassy-time",
- "embedded-hal-async",
-]
-
-[[package]]
-name = "embassy-ssd1306-graphics"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5ee54f7cf7b88ae0df10666486cc3eb1175e8c38836091de452348bd3e5ce453"
-dependencies = [
- "embassy-ssd1306",
- "embedded-hal-async",
-]
-
-[[package]]
 name = "embassy-time"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -100,11 +80,31 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7e3450815272ef58cec6d564423f6e755e25379b217b0bc688e295ba24df6b1d"
 
 [[package]]
-name = "hazard3-ssd1306-physics"
-version = "0.3.1"
+name = "hazard3-ssd1306"
+version = "0.7.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "336aaebca55c0f690428db7d30dd09feea0cffbc4a2d5a60ff8b5ec3387431a7"
 dependencies = [
- "embassy-ssd1306-graphics",
+ "embassy-time",
  "embedded-hal-async",
+]
+
+[[package]]
+name = "hazard3-ssd1306-graphics"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d38c635aa2db633a2e28d7e40b86dfc20414d35ce63bf2eb7f3712c7937d1c70"
+dependencies = [
+ "embedded-hal-async",
+ "hazard3-ssd1306",
+]
+
+[[package]]
+name = "hazard3-ssd1306-physics"
+version = "0.4.0"
+dependencies = [
+ "embedded-hal-async",
+ "hazard3-ssd1306-graphics",
 ]
 
 [[package]]

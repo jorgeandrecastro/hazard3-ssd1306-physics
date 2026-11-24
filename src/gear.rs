@@ -70,7 +70,7 @@
 //! pair.draw(&mut gfx, 0.3, true, trig::cos, trig::sin);
 //! ```
 
-use embassy_ssd1306_graphics::Graphics;
+use hazard3_ssd1306_graphics::Graphics;
 use embedded_hal_async::i2c::I2c;
 use crate::draw_utils::{segment, ring, filled_disk};
 

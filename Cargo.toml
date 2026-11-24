@@ -1,6 +1,6 @@
 [package]
 name          = "hazard3-ssd1306-physics"
-version       = "0.3.1"
+version       = "0.4.0"
 edition       = "2024"
 authors       = ["Jorge Andre Castro <georgeandrec@gmail.com>"]
 license       = "GPL-2.0-or-later"
@@ -12,7 +12,7 @@ keywords      = ["embedded", "no-std", "oled", "ssd1306", "robotics"]
 categories    = ["embedded", "no-std", "graphics"]
 
 [dependencies]
-embassy-ssd1306-graphics = "0.1"
+hazard3-ssd1306-graphics = "0.2"
 embedded-hal-async       = "1.0"
 
 [profile.release]

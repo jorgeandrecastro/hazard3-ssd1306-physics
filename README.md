@@ -4,9 +4,9 @@
 
 `no_std` 2D drawings of physical objects for 128×64 SSD1306 OLED displays.
 
-This crate is designed for async embedded applications, including the [Hazard3 project](https://github.com/jorgeandrecastro/Hazard3). It builds on an SSD1306 graphics interface and provides reusable drawings for common physics and mechanical components.
+This crate provides reusable drawings for common physics and mechanical components in the [Hazard3 project](https://github.com/jorgeandrecastro/Hazard3). It builds on `hazard3-ssd1306-graphics`.
 
-See the [CHANGELOG.md](CHANGELOG.md) for release notes (version 0.3.1).
+See the [CHANGELOG.md](CHANGELOG.md) for release notes (version 0.4.0).
 
 ---
 
@@ -28,7 +28,7 @@ See the [CHANGELOG.md](CHANGELOG.md) for release notes (version 0.3.1).
 
 ```toml
 [dependencies]
-hazard3-ssd1306-physics = "0.3"
+hazard3-ssd1306-physics = "0.4"
 embedded-trig-f32 = "0.3"
 embedded-hal-async = "1.0"
 ```
@@ -392,7 +392,7 @@ Phasing is automatic: the teeth mesh cleanly at the point of contact.
 └──────────────────────┬──────────────────────────┘
                        │ line() / circle() / fill_circle()
 ┌──────────────────────▼──────────────────────────┐
-│            SSD1306 graphics layer                │
+│          hazard3-ssd1306-graphics               │
 │   clipping · pixel()                            │
 └──────────────────────┬──────────────────────────┘
                        │ draw_pixel()

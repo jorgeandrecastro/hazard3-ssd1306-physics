@@ -37,7 +37,7 @@
 //! compass.draw(&mut gfx, 0.785, true, trig::cos, trig::sin); // NE
 //! ```
 
-use embassy_ssd1306_graphics::Graphics;
+use hazard3_ssd1306_graphics::Graphics;
 use embedded_hal_async::i2c::I2c;
 use crate::draw_utils::{segment, filled_disk, ring};
 

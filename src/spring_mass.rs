@@ -41,7 +41,7 @@
 //! sm.draw(&mut gfx, -4, true);  // compress the spring by 4 px
 //! ```
 
-use embassy_ssd1306_graphics::Graphics;
+use hazard3_ssd1306_graphics::Graphics;
 use embedded_hal_async::i2c::I2c;
 use crate::draw_utils::segment;
 

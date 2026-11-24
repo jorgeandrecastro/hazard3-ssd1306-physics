@@ -85,7 +85,7 @@
 //! real-time rendering on a 128×64 SSD1306 display.
 
 use crate::draw_utils::{filled_disk, filled_rect, segment, thick_segment};
-use embassy_ssd1306_graphics::Graphics;
+use hazard3_ssd1306_graphics::Graphics;
 use embedded_hal_async::i2c::I2c;
 
 // ─────────────────────────────────────────────────────────────────────────────

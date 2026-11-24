@@ -7,7 +7,7 @@
 //! These functions adapt the SSD1306 graphics primitives and avoid repeating
 //! imports in each object module.
 
-use embassy_ssd1306_graphics::Graphics;
+use hazard3_ssd1306_graphics::Graphics;
 use embedded_hal_async::i2c::I2c;
 
 /// Draws a line between two points (using Bresenham's algorithm via graphics).
@@ -18,7 +18,7 @@ pub fn segment<I: I2c>(
     x1: i32, y1: i32,
     on: bool,
 ) {
-    embassy_ssd1306_graphics::line(gfx, x0, y0, x1, y1, on);
+    hazard3_ssd1306_graphics::line(gfx, x0, y0, x1, y1, on);
 }
 
 /// Draws a filled disk (joint, mass, or hub).
@@ -28,7 +28,7 @@ pub fn filled_disk<I: I2c>(
     cx: i32, cy: i32, r: i32,
     on: bool,
 ) {
-    embassy_ssd1306_graphics::fill_circle(gfx, cx, cy, r, on);
+    hazard3_ssd1306_graphics::fill_circle(gfx, cx, cy, r, on);
 }
 
 /// Draws an unfilled circle (dial or rim).
@@ -38,7 +38,7 @@ pub fn ring<I: I2c>(
     cx: i32, cy: i32, r: i32,
     on: bool,
 ) {
-    embassy_ssd1306_graphics::circle(gfx, cx, cy, r, on);
+    hazard3_ssd1306_graphics::circle(gfx, cx, cy, r, on);
 }
 
 /// Draws a filled rectangle (mass block or gear tooth).
