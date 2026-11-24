@@ -1,59 +1,59 @@
 # Changelog
 
-Tous les changements notables de ce projet sont documentés dans ce fichier.
+All notable changes to this project are documented in this file.
 
-Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
-et ce projet respecte la [Gestion sémantique de version](https://semver.org/spec/v2.0.0.html).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
 ## [0.3.1] — 2026-05-21
 
-### Corrections
+### Fixed
 
-- **Module `robotic_arm`** : Correction de l'enum `Facing`
-  - Orientation corrigée : `Right` / `Left` / `RightFlipped` / `LeftFlipped`
-  - Convention : droite-droite-gauche-gauche pour l'orientation correcte
+- **`robotic_arm` module**: Fixed the `Facing` enum.
+  - Corrected orientations: `Right` / `Left` / `RightFlipped` / `LeftFlipped`
+  - Orientation mapping: right-right-left-left
 
 ---
 
 ## [0.3.0] — 2026-05-18
 
-### Ajouts
+### Added
 
-- **Module `piston`** : Nouvelle struct `Piston` pour animation mécanique 2D
-  - Chambre cylindrique fermée avec piston contraint
-  - Tige guidée (liaison rigide)
-  - Dimensions et position du piston configurables
-  - Fondation future pour moteur thermique / vilebrequin
-  - Exemple : `Piston::new(64, 10, 20, 40)` avec `set_pos()` pour mouvement vertical
+- **`piston` module**: Added the `Piston` struct for 2D mechanical animation.
+  - Closed cylinder chamber with a constrained piston
+  - Guided rod (rigid connection)
+  - Configurable piston dimensions and position
+  - Foundation for future internal combustion engine / crankshaft visuals
+  - Example: `Piston::new(64, 10, 20, 40)` with `set_pos()` for vertical movement
 
-- **Module `robotic_arm`** — Documentation et API enrichies
-  - Architecture complète : socle industriel, pivot d'épaule, 2 segments, effecteur, pince pneumatique
-  - Enum `Facing` pour contrôler orientation et sens d'ouverture (`Right` / `Left`)
-  - Convention angulaire clarifiée : angles mesurés depuis la verticale montante
-  - Méthodes de personnalisation : `with_wall()` (socle), `with_gripper()` (pince)
-  - Exemples détaillés : constructeur, personnalisation, boucle d'animation
-  - Nouveautés : `Facing`(attention Left la pince pointe à droite et Right la pince pointe à gauche), `with_wall()`, `with_gripper()`
+- **`robotic_arm` module**: Expanded documentation and API.
+  - Full assembly: industrial base, shoulder pivot, two segments, end effector, and pneumatic gripper
+  - `Facing` enum controls orientation and opening direction (`Right` / `Left`)
+  - Clarified angle convention: angles are measured from the upward vertical
+  - Customization methods: `with_wall()` (base) and `with_gripper()` (gripper)
+  - Detailed constructor, customization, and animation loop examples
+  - Added `Facing` (note: `Left` points the gripper right, while `Right` points it left), `with_wall()`, and `with_gripper()`
 
-### Modifications
+### Changed
 
-- **Documentation `pendulum`** : Clarté et complétude considérablement améliorées
-  - Explication détaillée de la géométrie : « angle mesuré depuis la verticale descendante » (0 = repos)
-  - Rendus clarifiés : encastrement (rect + hachures diagonales), tige, pivot (r=1), masse (r=3)
-  - Exemples enrichis :
-    - Constructeur par défaut avec angles positifs/négatifs
-    - Encastrement personnalisé via `with_wall()`
-    - Boucle d'animation simple avec `erase()` et `draw()`
-  - Correction de la description dans la table « Objets disponibles »
+- **`pendulum` documentation**: Significantly improved clarity and completeness.
+  - Detailed geometry explanation: angle measured from the downward vertical (0 = resting position)
+  - Clarified rendering: mount (rectangle with diagonal hatching), rod, pivot (r=1), and mass (r=3)
+  - Expanded examples:
+    - Default constructor with positive and negative angles
+    - Custom mount using `with_wall()`
+    - Simple animation loop using `erase()` and `draw()`
+  - Corrected the description in the "Available objects" table
 
 ---
 
-## [0.1.0] — Première publication
+## [0.1.0] — Initial release
 
-- `RoboticArm` : Bras robotique 2 segments (épaule + coude)
-- `Pendulum` : Pendule simple (pivot fixe + tige + masse)
-- `SpringMass` : Système ressort-masse vertical
-- `Compass` : Rose des vents avec cardinaux
-- `Gear`, `GearPair`, `GearTrain` : Animations d'engrenages avec synchronisation
-- `draw_utils` : Primitives partagées (segment, arc, disque, rect)
+- `RoboticArm`: Two-segment robotic arm (shoulder + elbow)
+- `Pendulum`: Simple pendulum (fixed pivot + rod + mass)
+- `SpringMass`: Vertical spring-mass system
+- `Compass`: Compass rose with cardinal points
+- `Gear`, `GearPair`, `GearTrain`: Synchronized gear animations
+- `draw_utils`: Shared primitives (line, arc, disk, rectangle)

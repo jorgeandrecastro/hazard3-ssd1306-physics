@@ -1,69 +1,70 @@
-# embassy-ssd1306-physics
+# hazard3-ssd1306-physics
 
-[![docs](https://docs.rs/embassy-ssd1306-physics/badge.svg)](https://docs.rs/embassy-ssd1306-physics/) [![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html) [![physics-objects](https://img.shields.io/badge/physics--objects-embassy--ssd1306--physics-blue.svg)](https://crates.io/crates/embassy_ssd1306_physics)
+[![docs](https://docs.rs/hazard3-ssd1306-physics/badge.svg)](https://docs.rs/hazard3-ssd1306-physics/) [![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html) [![physics-objects](https://img.shields.io/badge/physics--objects-hazard3--ssd1306--physics-blue.svg)](https://crates.io/crates/hazard3-ssd1306-physics)
 
-Dessins 2D `no_std` d'objets physiques pour écrans OLED SSD1306 (128×64),  
-construite au-dessus de [`embassy-ssd1306-graphics`](https://crates.io/crates/embassy-ssd1306-graphics).
+`no_std` 2D drawings of physical objects for 128×64 SSD1306 OLED displays.
 
-Consultez les notes de version dans le [CHANGELOG.md](CHANGELOG.md) (version 0.3.1).
+This crate is designed for async embedded applications, including the [Hazard3 project](https://github.com/jorgeandrecastro/Hazard3). It builds on an SSD1306 graphics interface and provides reusable drawings for common physics and mechanical components.
 
----
-
-## Objets disponibles
-
-| Module          | Struct(s)               | Description                                      |
-|-----------------|-------------------------|--------------------------------------------------|
-| `robotic_arm`   | `RoboticArm`, `Facing`  | Bras industriel 2D (socle + pince pneumatique)   |
-| `pendulum`      | `Pendulum`              | Pendule simple (encastrement + tige + masse)     |
-| `piston`        | `Piston`                | Piston 2D mécanique (chambre + tige guidée)      |
-| `spring_mass`   | `SpringMass`            | Système ressort-masse vertical (zigzag + bloc)   |
-| `compass`       | `Compass`               | Boussole (cadran + cardinaux + aiguille)         |
-| `gear`          | `Gear`, `GearPair`, `GearTrain` | Engrenages simples, paires et trains     |
-| `draw_utils`    | *(interne)*             | Primitives partagées (segment, arc, disque…)     |
-
+See the [CHANGELOG.md](CHANGELOG.md) for release notes (version 0.3.1).
 
 ---
 
-## Ajouter au projet
+## Available objects
+
+| Module        | Struct(s)                           | Description                                           |
+|---------------|-------------------------------------|-------------------------------------------------------|
+| `robotic_arm` | `RoboticArm`, `Facing`              | 2D industrial arm (base and pneumatic gripper)        |
+| `pendulum`    | `Pendulum`                          | Simple pendulum (mount, rod, and mass)                |
+| `piston`      | `Piston`                            | 2D mechanical piston (chamber and guided rod)         |
+| `spring_mass` | `SpringMass`                        | Vertical spring-mass system (zigzag spring and block) |
+| `compass`     | `Compass`                           | Compass (dial, cardinal points, and needle)            |
+| `gear`        | `Gear`, `GearPair`, `GearTrain`     | Individual gears, pairs, and gear trains              |
+| `draw_utils`  | *(internal)*                        | Shared drawing primitives (line, arc, disk, etc.)     |
+
+---
+
+## Add the crate to your project
 
 ```toml
 [dependencies]
-embassy-ssd1306          = "0.6"
-embassy-ssd1306-graphics  = "0.1"
-embassy-ssd1306-physics   = "0.3"
-embedded-trig-f32         = "0.1"   
-embedded-hal-async        = "1.0"
+hazard3-ssd1306-physics = "0.3"
+embedded-trig-f32 = "0.3"
+embedded-hal-async = "1.0"
 ```
+
+For async application setup and display initialization, see the [Hazard3 project](https://github.com/jorgeandrecastro/Hazard3).
 
 ---
 
-## Patron sin/cos injecté
+## Injected sin/cos functions
 
-Chaque `draw()` accepte `cos_fn: fn(f32) -> f32` et `sin_fn: fn(f32) -> f32`.  
-Passez vos fonctions trig `no_std` favorites : zéro couplage, zéro overhead :
+Each `draw()` method accepts `cos_fn: fn(f32) -> f32` and `sin_fn: fn(f32) -> f32`.
+Pass in your preferred `no_std` trigonometry functions: no coupling and no overhead.
 
 ```rust
 use embedded_trig_f32 as trig;
+
 arm.draw(&mut gfx, 0.785, -0.524, true, trig::cos, trig::sin);
 ```
 
 ---
 
-## Convention de repère et angles
+## Coordinate system and angles
 
-### Repère écran
+### Screen coordinates
 
 ```text
 (0,0) ──── X+
   │
-  Y+   (Y croît vers le bas — convention écran standard)
+  Y+   (Y increases downward, following the standard screen convention)
 ```
 
-### Conventions angulaires par objet
+### Angle conventions by object
 
-#### `RoboticArm` : Angles depuis la verticale montante
+#### `RoboticArm`: angles measured from the upward vertical
 
-L'angle est mesuré **depuis la verticale montante** (axe −Y) :
+The angle is measured **from the upward vertical** (the −Y axis):
 
 ```text
        0°
@@ -71,49 +72,49 @@ L'angle est mesuré **depuis la verticale montante** (axe −Y) :
 −90° ←   → +90°
 ```
 
-- `angle_shoulder` : orientation absolue du segment 1
-  - `0.0` → segment droit vers le haut
-  - positif → incliné vers le côté `Facing`
-- `angle_elbow` : rotation relative du segment 2 par rapport au segment 1
-  - `0.0` → segments alignés (bras tendu)
-  - positif → coude plié vers le côté `Facing`
+- `angle_shoulder`: absolute orientation of segment 1
+  - `0.0` → segment points straight up
+  - positive → tilts toward the `Facing` side
+- `angle_elbow`: rotation of segment 2 relative to segment 1
+  - `0.0` → segments are aligned (arm fully extended)
+  - positive → elbow bends toward the `Facing` side
 
-#### `Pendulum` : Angles depuis la verticale descendante
+#### `Pendulum`: angles measured from the downward vertical
 
-L'angle est mesuré **depuis la verticale descendante** (axe +Y) :
+The angle is measured **from the downward vertical** (the +Y axis):
 
 ```text
   −90° ← 0° → +90°
          ↓
 ```
 
-- `0.0` → pendule au repos (tige pend vers le bas)
-- positif → penche à droite
-- négatif → penche à gauche
+- `0.0` → pendulum at rest (rod points down)
+- positive → leans to the right
+- negative → leans to the left
 
-#### `Piston` : Position linéaire
+#### `Piston`: linear position
 
-Le piston se déplace **verticalement** (axe Y) dans sa chambre :
+The piston moves **vertically** (along the Y axis) inside its chamber:
 
 ```text
-pos = 0     ← sommet (chambre fermée)
+pos = 0     ← top (chamber closed)
   │
-  │ chambre
+  │ chamber
   │
-pos = max   ← bas (piston complètement sortant)
+pos = max   ← bottom (piston fully extended)
 ```
 
-- `pos ∈ [0, h − piston_h]` : position contrainte
-- `normalized() ∈ [0.0, 1.0]` : position normalisée (0 = haut, 1 = bas)
+- `pos ∈ [0, h − piston_h]`: constrained position
+- `normalized() ∈ [0.0, 1.0]`: normalized position (0 = top, 1 = bottom)
 
 ---
 
-## Structure des modules
+## Module structure
 
 ```
 src/
-├── lib.rs           ← déclarations + re-exports
-├── draw_utils.rs    ← segment, arc, disque, rect (partagés)
+├── lib.rs           ← declarations and re-exports
+├── draw_utils.rs    ← shared line, arc, disk, and rectangle helpers
 ├── robotic_arm.rs   ← RoboticArm
 ├── pendulum.rs      ← Pendulum
 ├── piston.rs        ← Piston
@@ -122,67 +123,68 @@ src/
 └── gear.rs          ← Gear · GearPair · GearTrain
 ```
 
-### Ajouter un nouvel objet
+### Adding a new object
 
-1. Créer `src/mon_objet.rs`
-2. Déclarer `pub mod mon_objet;` dans `src/lib.rs`
-3. (Optionnel) `pub use mon_objet::MonObjet;` pour re-export
+1. Create `src/my_object.rs`.
+2. Declare `pub mod my_object;` in `src/lib.rs`.
+3. Optionally add `pub use my_object::MyObject;` to re-export it.
 
-Aucun autre fichier à toucher.
+No other files need to be changed.
 
 ---
 
-## Exemples
+## Examples
 
-### Bras robotique
+### Robotic arm
 
-Bras industriel 2D à deux segments avec pince pneumatique.  
-**L'angle est mesuré depuis la verticale montante** (0 = droit vers le haut, positif = incliné selon `Facing`).
+A two-segment 2D industrial arm with a pneumatic gripper.
+**Angles are measured from the upward vertical** (0 = straight up, positive = tilts toward `Facing`).
 
-**Architecture :** socle industriel (rect + hachures) + pivot d'épaule + segment 1 + segment 2 + effecteur + pince à mâchoires.
+**Design:** industrial base (rectangle and hatching), shoulder pivot, segment 1, segment 2, end effector, and jaw gripper.
 
-**Facing** : énumération `Right` / `Left` qui contrôle l'orientation et le sens d'ouverture de la pince. Dans l'implémentation actuelle, `Facing::Right` applique un miroir horizontal et `Facing::Left` conserve l'orientation locale.
+**Facing:** the `Right` / `Left` enum controls the arm orientation and the direction in which the gripper opens. In the current implementation, `Facing::Right` mirrors the arm horizontally, while `Facing::Left` keeps its local orientation.
 
-#### Nouveautés RoboticArm
+#### RoboticArm features
 
-- `Facing` pour inverser facilement l'orientation du bras .
-- `with_wall()` pour personnaliser le socle industriel
-- `with_gripper()` pour ajuster la taille de la pince
-- Convention angulaire clarifiée : angles mesurés depuis la verticale montante
+- `Facing` makes it easy to reverse the arm's orientation.
+- `with_wall()` customizes the industrial base.
+- `with_gripper()` adjusts the gripper size.
+- Angles are measured from the upward vertical.
 
-#### Constructeur par défaut
+#### Default constructor
 
 ```rust
-use embassy_ssd1306_physics::RoboticArm;
+use hazard3_ssd1306_physics::RoboticArm;
+use hazard3_ssd1306_physics::Facing;
 use embedded_trig_f32 as trig;
 
-// Base à (64, 63), segment 1: 20px, segment 2: 18px
+// Base at (64, 63), segment 1: 20 px, segment 2: 18 px
 let arm = RoboticArm::new(64, 63, 20, 18);
 
-// Épaule à 45°, coude à -30° relatif, pince fermée (0.0)
+// Shoulder at 45°, elbow at -30° relative to the shoulder, gripper closed (0.0)
 arm.draw(&mut gfx, 0.785, -0.524, 0.0, Facing::Right, true, trig::cos, trig::sin);
 
-// Même bras à gauche
+// The same arm facing left
 arm.draw(&mut gfx, 0.785, -0.524, 0.0, Facing::Left, true, trig::cos, trig::sin);
 ```
 
-#### Socle et pince personnalisés
+#### Custom base and gripper
 
 ```rust
-use embassy_ssd1306_physics::{RoboticArm, Facing};
+use hazard3_ssd1306_physics::{Facing, RoboticArm};
 use embedded_trig_f32 as trig;
 
 let arm = RoboticArm::new(32, 60, 18, 16)
-    .with_wall(20, 6)           // socle plus grand : 20×6
-    .with_gripper(10, 2);       // pince : 10px long, 2px hauteur
+    .with_wall(20, 6)           // larger base: 20×6
+    .with_gripper(10, 2);       // gripper: 10 px long, 2 px high
 
 arm.draw(&mut gfx, 0.3, 0.4, 0.0, Facing::Right, true, trig::cos, trig::sin);
 ```
 
-#### Animation simple
+#### Simple animation
 
 ```rust
-use embassy_ssd1306_physics::{RoboticArm, Facing};
+use hazard3_ssd1306_physics::{Facing, RoboticArm};
 use embedded_trig_f32 as trig;
 
 let arm = RoboticArm::new(64, 63, 20, 18);
@@ -191,77 +193,78 @@ let mut angle_elbow: f32 = 0.0;
 
 loop {
     arm.erase(&mut gfx, angle_shoulder, angle_elbow, 0.0, Facing::Right, trig::cos, trig::sin);
-    
-    // Balancer l'épaule et le coude
+
+    // Swing the shoulder and elbow
     angle_shoulder += 0.05;
     angle_elbow -= 0.03;
-    
+
     arm.draw(&mut gfx, angle_shoulder, angle_elbow, 0.0, Facing::Right, true, trig::cos, trig::sin);
     oled.flush().await.unwrap();
 }
-
-### Pendule
-
-Pendule simple : pivot fixe + tige + masse circulaire.  
-**L'angle est mesuré depuis la verticale descendante** (0 = repos, positif = penche à droite).
-
-**Rendus :** encastrement mural (rect + hachures) + tige + pivot (r=1) + masse (r=3).
-
-#### Constructeur par défaut
-
-```rust
-use embassy_ssd1306_physics::Pendulum;
-use embedded_trig_f32 as trig;
-
-// Pivot à (64, 6), tige 28px, encastrement par défaut 16×5
-let pend = Pendulum::new(64, 6, 28);
-pend.draw(&mut gfx, 0.4, true, trig::cos, trig::sin);   // ~23° à droite
-pend.draw(&mut gfx, -0.4, true, trig::cos, trig::sin);  // ~23° à gauche
 ```
 
-#### Encastrement personnalisé
+### Pendulum
+
+A simple pendulum consisting of a fixed pivot, rod, and circular mass.
+**The angle is measured from the downward vertical** (0 = resting position, positive = leans right).
+
+**Rendering:** wall mount (rectangle and hatching), rod, pivot (r=1), and mass (r=3).
+
+#### Default constructor
 
 ```rust
-use embassy_ssd1306_physics::Pendulum;
+use hazard3_ssd1306_physics::Pendulum;
 use embedded_trig_f32 as trig;
 
-// Encastrement plus grand : 20×8 au lieu de 16×5
+// Pivot at (64, 6), 28 px rod, default 16×5 mount
+let pend = Pendulum::new(64, 6, 28);
+pend.draw(&mut gfx, 0.4, true, trig::cos, trig::sin);   // ~23° to the right
+pend.draw(&mut gfx, -0.4, true, trig::cos, trig::sin);  // ~23° to the left
+```
+
+#### Custom mount
+
+```rust
+use hazard3_ssd1306_physics::Pendulum;
+use embedded_trig_f32 as trig;
+
+// Larger mount: 20×8 instead of 16×5
 let pend = Pendulum::with_wall(32, 10, 30, 20, 8);
 pend.draw(&mut gfx, 0.2, true, trig::cos, trig::sin);
 ```
 
-#### Animation simple
+#### Simple animation
 
 ```rust
 let mut angle: f32 = 0.0;
 loop {
     pend.erase(&mut gfx, angle, trig::cos, trig::sin);
-    angle += 0.05;  // incrémenter l'angle progressivement
+    angle += 0.05;  // gradually increment the angle
     pend.draw(&mut gfx, angle, true, trig::cos, trig::sin);
     oled.flush().await.unwrap();
 }
 ```
 
-### Ressort-masse
+### Spring-mass system
 
 ```rust
-use embassy_ssd1306_physics::SpringMass;
+use hazard3_ssd1306_physics::SpringMass;
 
 let sm = SpringMass::new(64, 4, 22, 12);
-// Ressort étiré de 6px
+// Extend the spring by 6 px
 sm.draw(&mut gfx, 6, true);
-// Ressort comprimé de 4px
+// Compress the spring by 4 px
 sm.draw(&mut gfx, -4, true);
 
-// Personnalisation : 8 demi-spires, amplitude ±6px
+// Customize: 8 half-coils, amplitude ±6 px
 let sm2 = SpringMass::new(64, 4, 22, 12).with_coils(8, 6);
 sm2.draw(&mut gfx, 0, true);
 ```
 
-### Boussole
+### Compass
 
 ```rust
-use embassy_ssd1306_physics::Compass;
+use hazard3_ssd1306_physics::Compass;
 use embedded_trig_f32 as trig;
 
 let compass = Compass::new(112, 32, 14);
@@ -271,19 +274,19 @@ compass.draw(&mut gfx, 0.785, true, trig::cos, trig::sin); // NE
 ### Piston
 
 ```rust
-use embassy_ssd1306_physics::Piston;
+use hazard3_ssd1306_physics::Piston;
 
 let mut piston = Piston::new(64, 10, 20, 40);
 
-// Position au sommet (fermé)
+// At the top (closed)
 piston.set_pos(0);
 piston.draw(&mut gfx, 0.0, true, |_| 0.0, |_| 0.0);
 
-// Position au milieu
+// In the middle
 piston.set_pos(20);
 piston.draw(&mut gfx, 0.0, true, |_| 0.0, |_| 0.0);
 
-// Animation simple : va-et-vient
+// Simple back-and-forth animation
 let max_pos = piston.h - piston.piston_h;
 let mut pos: i32 = 0;
 loop {
@@ -296,10 +299,10 @@ loop {
 }
 ```
 
-### Engrenage simple
+### Single gear
 
 ```rust
-use embassy_ssd1306_physics::Gear;
+use hazard3_ssd1306_physics::Gear;
 use embedded_trig_f32 as trig;
 
 //                      cx  cy  pitch_r  teeth  tooth_h  tooth_w%  hub_r
@@ -307,16 +310,16 @@ let g = Gear::new(      40, 32,    14,     10,      4,      70,      4);
 g.draw(&mut gfx, 0.0, true, trig::cos, trig::sin);
 ```
 
-### Paire d'engrenages
+### Gear pair
 
 ```rust
-use embassy_ssd1306_physics::gear::{Gear, GearPair};
+use hazard3_ssd1306_physics::gear::{Gear, GearPair};
 use embedded_trig_f32 as trig;
 
 let pair = GearPair::new(
-    Gear::new(30, 32, 12, 8, 4, 70, 3),   // moteur (cx/cy réels)
-    Gear::new(0, 0, 18, 12, 4, 70, 5),    // récepteur (cx/cy calculés)
-    0.0,                                    // g2 à droite de g1
+    Gear::new(30, 32, 12, 8, 4, 70, 3),   // driver (actual cx/cy)
+    Gear::new(0, 0, 18, 12, 4, 70, 5),    // driven (cx/cy are calculated)
+    0.0,                                    // g2 is to the right of g1
     trig::cos, trig::sin,
 );
 
@@ -329,17 +332,17 @@ loop {
 }
 ```
 
-### Train de 3 engrenages
+### Three-gear train
 
 ```rust
-use embassy_ssd1306_physics::gear::{Gear, GearTrain};
+use hazard3_ssd1306_physics::gear::{Gear, GearTrain};
 use embedded_trig_f32 as trig;
 
 let train = GearTrain::new(
-    Gear::new(18, 32, 10, 8, 3, 70, 2),  // G1 moteur
-    Gear::new(0, 0,  14, 12, 3, 70, 3),  // G2 intermédiaire
-    Gear::new(0, 0,   8,  6, 3, 70, 2),  // G3 sortie
-    0.0,                                   // alignement horizontal
+    Gear::new(18, 32, 10, 8, 3, 70, 2),  // G1: driver
+    Gear::new(0, 0,  14, 12, 3, 70, 3),  // G2: intermediate
+    Gear::new(0, 0,   8,  6, 3, 70, 2),  // G3: output
+    0.0,                                   // horizontal alignment
     trig::cos, trig::sin,
 );
 train.draw(&mut gfx, 0.2, true, trig::cos, trig::sin);
@@ -347,28 +350,28 @@ train.draw(&mut gfx, 0.2, true, trig::cos, trig::sin);
 
 ---
 
-## Géométrie des engrenages
+## Gear geometry
 
 ```
-         ┌─┐ ┌─┐ ┌─┐   ← sommet (pitch_r + tooth_h)
+         ┌─┐ ┌─┐ ┌─┐   ← top (pitch_r + tooth_h)
        ──┘ └─┘ └─┘ └──
       /                \
-     │    ┌──────┐      │  ← cercle primitif (pitch_r)
-     │    │  ◎   │      │  ← moyeu (hub_r)
+     │    ┌──────┐      │  ← pitch circle (pitch_r)
+     │    │  ◎   │      │  ← hub (hub_r)
      │    └──────┘      │
       \                /
        ──┐ ┌─┐ ┌─┐ ┌──
          └─┘ └─┘ └─┘
 ```
 
-### Rapport de transmission GearPair / GearTrain
+### GearPair / GearTrain transmission ratio
 
 ```
 ω2 = -ω1 × (teeth1 / teeth2)
 ω3 =  ω1 × (teeth1 / teeth2) × (teeth2 / teeth3)   [GearTrain]
 ```
 
-La mise en phase est automatique : les dents se croisent proprement au point de contact.
+Phasing is automatic: the teeth mesh cleanly at the point of contact.
 
 ---
 
@@ -376,58 +379,58 @@ La mise en phase est automatique : les dents se croisent proprement au point de 
 
 ```
 ┌─────────────────────────────────────────────────┐
-│                Votre application                │
-│  RoboticArm / Pendulum / Gear / GearPair …     │
+│                Your application                 │
+│  RoboticArm / Pendulum / Gear / GearPair …      │
 └──────────────────────┬──────────────────────────┘
                        │ &mut Graphics
 ┌──────────────────────▼──────────────────────────┐
-│        embassy-ssd1306-physics                  │
+│        hazard3-ssd1306-physics                  │
 │   robotic_arm · pendulum · spring_mass          │
 │   compass · gear (Gear / GearPair / GearTrain)  │
 │                  ↓ draw_utils                   │
-│   segment · arc · ring · filled_disk · rect     │
+│   line · arc · ring · filled disk · rectangle   │
 └──────────────────────┬──────────────────────────┘
                        │ line() / circle() / fill_circle()
 ┌──────────────────────▼──────────────────────────┐
-│        embassy-ssd1306-graphics                 │
+│            SSD1306 graphics layer                │
 │   clipping · pixel()                            │
 └──────────────────────┬──────────────────────────┘
                        │ draw_pixel()
 ┌──────────────────────▼──────────────────────────┐
-│        embassy-ssd1306 (driver)                 │
+│              SSD1306 driver                      │
 │   framebuffer · I2C · flush()                   │
 └─────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Disposition suggérée sur 128×64
+## Suggested layout for 128×64
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│ RoboticArm (x 0–55) │ GearPair (x 56–95) │ Pendule │ Boussole │
-│ base=(20,50)         │ g1=(66,32) r=10    │ (104,6) │ (120,32) │
-│ seg1=28 seg2=18      │ g2=(84,32) r=8     │  l=20   │  r=10    │
+│ RoboticArm (x 0–55) │ GearPair (x 56–95) │ Pendulum │ Compass │
+│ base=(20,50)         │ g1=(66,32) r=10    │ (104,6) │ (120,32)│
+│ seg1=28 seg2=18      │ g2=(84,32) r=8     │  l=20   │  r=10   │
 └────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Convention des angles
+## Angle conventions
 
-| Objet         | Référence 0°             | Sens positif       | Type       |
-|---------------|--------------------------|--------------------|------------|
-| `RoboticArm`  | Verticale montante (Y−)  | Vers `Facing`      | Angulaire  |
-| `Pendulum`    | Verticale descendante (Y+) | Droite           | Angulaire  |
-| `Piston`      | Sommet chambre (pos=0)   | Vers le bas (Y+)   | Linéaire   |
-| `Compass`     | Nord (Y−)                | Horaire (Est)      | Angulaire  |
-| `Gear`        | X+ horizontal            | Horaire            | Angulaire  |
-| `SpringMass`  | —                        | Extension vers Y+  | Linéaire   |
+| Object        | 0° reference                 | Positive direction       | Type      |
+|---------------|------------------------------|--------------------------|-----------|
+| `RoboticArm`  | Upward vertical (Y−)         | Toward `Facing`          | Angular   |
+| `Pendulum`    | Downward vertical (Y+)       | Right                    | Angular   |
+| `Piston`      | Chamber top (pos=0)          | Downward (Y+)             | Linear    |
+| `Compass`     | North (Y−)                   | Clockwise (East)          | Angular   |
+| `Gear`        | Horizontal X+                | Clockwise                 | Angular   |
+| `SpringMass`  | —                            | Extension toward Y+       | Linear    |
 
 ---
 
-# Licence
+# License
 
-GNU GPL v2 ou ultérieure — voir `LICENSE`.
+GNU GPL v2 or later — see `LICENSE`.
 
 **Copyright (C) 2026 Jorge Andre Castro**

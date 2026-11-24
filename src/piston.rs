@@ -3,46 +3,46 @@
 
 //! # piston
 //!
-//! Piston 2D mécanique propre (sans gaz).
+//! A clean 2D mechanical piston model (without gas).
 //!
-//! Modèle physique simplifié :
-//! - cylindre fermé (chambre)
-//! - piston contraint dans la chambre
-//! - tige guidée (liaison rigide)
+//! Simplified physical model:
+//! - closed cylinder (chamber)
+//! - piston constrained inside the chamber
+//! - guided rod (rigid connection)
 //!
-//! Objectif : base future pour moteur thermique / crankshaft.
+//! Intended as a foundation for future internal combustion engine / crankshaft visuals.
 
 use embassy_ssd1306_graphics::Graphics;
 use embedded_hal_async::i2c::I2c;
 
 use crate::draw_utils::{segment, filled_rect};
 
-/// Piston 2D vertical contraint dans une chambre.
+/// A 2D piston constrained to move vertically inside a chamber.
 #[derive(Clone, Copy, Debug)]
 pub struct Piston {
-    /// Centre X du cylindre
+    /// X coordinate of the cylinder center.
     pub cx: i32,
-    /// Haut du cylindre
+    /// Top of the cylinder.
     pub cy: i32,
 
-    /// Largeur du cylindre
+    /// Cylinder width.
     pub w: i32,
-    /// Hauteur totale du cylindre
+    /// Total cylinder height.
     pub h: i32,
 
-    /// Épaisseur du piston
+    /// Piston thickness.
     pub piston_h: i32,
 
-    /// Position normalisée [0..h - piston_h]
+    /// Piston position in the range `[0..h - piston_h]`.
     pub pos: i32,
 }
 
 impl Piston {
-    /// Crée un piston.
+    /// Creates a piston.
     ///
-    /// `cx, cy` : centre haut de la chambre
-    /// `w`      : largeur du cylindre
-    /// `h`      : hauteur de la chambre
+    /// `cx, cy`: center of the top of the chamber.
+    /// `w`: cylinder width.
+    /// `h`: chamber height.
     pub fn new(cx: i32, cy: i32, w: i32, h: i32) -> Self {
         Self {
             cx,
@@ -54,21 +54,21 @@ impl Piston {
         }
     }
 
-    /// Force la position du piston dans la chambre.
+    /// Sets the piston position inside the chamber.
     #[inline]
     pub fn set_pos(&mut self, pos: i32) {
         let max = self.h - self.piston_h;
         self.pos = pos.clamp(0, max);
     }
 
-    /// Position “physique” normalisée (0.0 → haut, 1.0 → bas)
+    /// Returns the normalized physical position (0.0 = top, 1.0 = bottom).
     #[inline]
     pub fn normalized(&self) -> f32 {
         let max = (self.h - self.piston_h).max(1);
         self.pos as f32 / max as f32
     }
 
-    /// Dessine le système piston + chambre.
+    /// Draws the piston and chamber.
     pub fn draw<I: I2c>(
         &self,
         gfx: &mut Graphics<'_, I>,
@@ -84,7 +84,7 @@ impl Piston {
         let bottom = self.cy + self.h;
 
         // ─────────────────────────────
-        // CHAMBRE (rectangle fermé)
+        // CHAMBER (closed rectangle)
         // ─────────────────────────────
         segment(gfx, left, top, right, top, on);
         segment(gfx, left, bottom, right, bottom, on);
@@ -92,7 +92,7 @@ impl Piston {
         segment(gfx, right, top, right, bottom, on);
 
         // ─────────────────────────────
-        // PISTON (contraint)
+        // PISTON (constrained)
         // ─────────────────────────────
         let max = self.h - self.piston_h;
         let y = self.cy + self.pos.clamp(0, max);
@@ -107,7 +107,7 @@ impl Piston {
         );
 
         // ─────────────────────────────
-        // TIGE GUIDÉE (sans débordement visuel)
+        // GUIDED ROD (no visual overhang)
         // ─────────────────────────────
         let rod_x = self.cx;
         let rod_top = y + self.piston_h / 2;
@@ -116,12 +116,12 @@ impl Piston {
         segment(gfx, rod_x, rod_top, rod_x, rod_bottom, on);
 
         // ─────────────────────────────
-        // CAPUCHON BAS (stabilité visuelle)
+        // BOTTOM CAP (visual stability)
         // ─────────────────────────────
         segment(gfx, left, bottom, right, bottom, on);
     }
 
-    /// Efface
+    /// Erases the piston and chamber.
     #[inline]
     pub fn erase<I: I2c>(
         &self,

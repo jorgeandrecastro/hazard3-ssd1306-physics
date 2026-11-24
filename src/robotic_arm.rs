@@ -1,49 +1,49 @@
 // Copyright (C) 2026 Jorge Andre Castro
 // GPL-2.0-or-later
 
-//! # RoboticArm bras industriel 2D
+//! # RoboticArm: 2D industrial arm
 //!
-//! Ce module implémente un bras robotique plan simplifié conçu pour affichage OLED
-//! et simulation embarquée `no_std`.
+//! This module implements a simplified planar robotic arm for OLED displays
+//! and `no_std` embedded simulation.
 //!
-//! ## Architecture mécanique
+//! ## Mechanical design
 //!
-//! Le système est composé de :
-//! - un **socle industriel** fixé au sol (rectangle hachuré)
-//! - une **articulation d'épaule** (pivot fixe, juste au-dessus du socle)
-//! - un **premier segment** (épaule → coude)
-//! - un **second segment** (coude → effecteur)
-//! - une **pince terminale** industrielle à mâchoires parallèles (type pneumatique)
+//! The system consists of:
+//! - an **industrial base** fixed to the floor (hatched rectangle)
+//! - a **shoulder joint** (fixed pivot just above the base)
+//! - a **first segment** (shoulder → elbow)
+//! - a **second segment** (elbow → end effector)
+//! - an industrial **parallel-jaw end gripper** (pneumatic type)
 //!
-//! ## Convention de repère
+//! ## Coordinate system
 //!
 //! ```text
 //! (0,0) ──── X+
 //!   │
-//!   Y+   (Y croît vers le bas, convention écran)
+//!   Y+   (Y increases downward, following screen convention)
 //! ```
 //!
-//! Le bras est **ancré en bas** (`base_y` = niveau sol) et s'étend **vers le haut**.
-//! L'orientation est contrôlée par [`Facing`], appliqué comme **transformation
-//! globale** (miroir 2D homogène) et non comme patch sur X.
+//! The arm is **anchored at the bottom** (`base_y` = floor level) and extends
+//! **upward**. Orientation is controlled by [`Facing`], applied as a **global
+//! transformation** (2D reflection) rather than as an X-only adjustment.
 //!
-//! ## Modèle visuel (facing = Right, angles nuls)
+//! ## Visual model (`facing = Right`, zero angles)
 //!
 //! ```text
-//!      ════╗  ← mâchoire sup
-//!        ●   ← effecteur
+//!      ════╗  ← upper jaw
+//!        ●   ← end effector
 //!       /
-//!      ●     ← coude
+//!      ●     ← elbow
 //!       \
-//!        ●   ← épaule
+//!        ●   ← shoulder
 //!        │
-//!    ██████  ← socle industriel
-//! ──────────  sol
+//!    ██████  ← industrial base
+//! ──────────  floor
 //! ```
 //!
-//! ## Convention angulaire (espace local, avant miroir)
+//! ## Angle convention (local space, before reflection)
 //!
-//! Les angles sont mesurés depuis la **verticale montante** (axe −Y écran) :
+//! Angles are measured from the **upward vertical** (screen's −Y axis):
 //!
 //! ```text
 //!        0°
@@ -51,101 +51,100 @@
 //! −90° ←   → +90°
 //! ```
 //!
-//! - `angle_shoulder` : orientation absolue du segment 1 depuis la verticale.
-//!   - `0.0`  → segment droit vers le haut
-//!   - positif → incliné vers la droite en espace local (avant miroir)
-//! - `angle_elbow` : rotation **relative** du segment 2 par rapport au segment 1.
-//!   - `0.0`  → segments alignés (bras tendu)
-//!   - positif → coude plié vers la droite en espace local
+//! - `angle_shoulder`: absolute orientation of segment 1 from the vertical.
+//!   - `0.0` → segment points straight up
+//!   - positive → tilts right in local space (before reflection)
+//! - `angle_elbow`: **relative** rotation of segment 2 from segment 1.
+//!   - `0.0` → segments are aligned (arm fully extended)
+//!   - positive → elbow bends right in local space
 //!
-//! ## Modèle mathématique : Facing comme transformation globale
+//! ## Mathematical model: Facing as a global transformation
 //!
-//! Toutes les directions sont d'abord calculées en **espace local** (Facing = Right),
-//! puis transformées par [`Transform2D`] avant d'être converties en pixels.
+//! All directions are first calculated in **local space** (`Facing = Right`),
+//! then transformed by [`Transform2D`] before conversion to pixels.
 //!
 //! ```text
-//! espace local  →  Transform2D::apply()  →  espace écran
+//! local space  →  Transform2D::apply()  →  screen space
 //!
-//! Right : miroir sur X    (sx=−1)
-//! Left  : identité        (sx=+1)
+//! Right: reflection across X (sx=−1)
+//! Left:  identity             (sx=+1)
 //! ```
 //!
-//! Le vecteur perpendiculaire (`perp`) est dérivé **après** transformation,
-//! ce qui garantit la cohérence géométrique de la pince dans les deux orientations.
+//! The perpendicular vector (`perp`) is derived **after** the transformation,
+//! ensuring that the gripper geometry is consistent in both orientations.
 //!
-//! ## Dépendances internes
+//! ## Internal dependencies
 //!
-//! Ce module utilise exclusivement les primitives de [`crate::draw_utils`] :
-//! [`segment`], [`thick_segment`], [`filled_disk`], [`filled_rect`].
-//! Il n'importe plus directement `embassy-ssd1306-graphics`.
+//! This module exclusively uses the primitives in [`crate::draw_utils`]:
+//! [`segment`], [`thick_segment`], [`filled_disk`], and [`filled_rect`].
+//! It does not import the graphics layer directly.
 //!
-//! ## Propriétés physiques
+//! ## Physical properties
 //!
-//! Modèle purement géométrique (pas d'inertie, pas de dynamique).
-//! Conçu pour rendu temps réel embarqué sur afficheur SSD1306 128×64.
+//! This is a purely geometric model (no inertia or dynamics), designed for
+//! real-time rendering on a 128×64 SSD1306 display.
 
 use crate::draw_utils::{filled_disk, filled_rect, segment, thick_segment};
 use embassy_ssd1306_graphics::Graphics;
 use embedded_hal_async::i2c::I2c;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Transform2D :transformation affine 2D minimale (rotation + miroir)
+// Transform2D: minimal 2D affine transformation (rotation + reflection)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Transformation affine 2D minimaliste pour l'espace écran.
+/// A minimal 2D affine transformation for screen space.
 ///
-/// Représente une matrice 2×2 appliquée à des vecteurs directeurs `(vx, vy)`.
-/// Pas de translation (elle est gérée explicitement via les origines de segment).
+/// Represents a 2×2 matrix applied to direction vectors `(vx, vy)`.
+/// There is no translation; it is handled explicitly by segment origins.
 ///
-/// # Matrice
+/// # Matrix
 ///
 /// ```text
 /// | sx  shx | × | vx |
 /// | shy  sy | × | vy |
 /// ```
 ///
-/// Pour [`Facing::Right`] : miroir X `(sx=−1, sy=1, shx=0, shy=0)`.
-/// Pour [`Facing::Left`]  : identité `(sx=1, sy=1, shx=0, shy=0)`.
+/// For [`Facing::Right`]: X reflection `(sx=−1, sy=1, shx=0, shy=0)`.
+/// For [`Facing::Left`]: identity `(sx=1, sy=1, shx=0, shy=0)`.
 ///
-/// # Pourquoi pas juste `sign` ?
+/// # Why not just use `sign`?
 ///
-/// Un simple `sign` sur X est insuffisant dès que la perpendiculaire
-/// est calculée depuis le vecteur transformé : le produit vectoriel
-/// `perp = (−dir_y, dir_x)` reste cohérent si et seulement si
-/// `dir` est déjà dans l'espace global.
-/// [`Transform2D`] garantit que **toutes** les directions passent
-/// par la même transformation avant usage.
+/// Applying a sign to X alone is insufficient when the perpendicular is
+/// calculated from the transformed vector: `perp = (−dir_y, dir_x)` remains
+/// consistent only if `dir` is already in global space.
+/// [`Transform2D`] ensures that **all** directions pass through the same
+/// transformation before use.
 #[derive(Clone, Copy, Debug)]
  pub struct Transform2D {
-    /// Facteur d'échelle sur X (±1.0 pour miroir, 1.0 pour identité).
+    /// X scale factor (±1.0 for reflection, 1.0 for identity).
      sx: f32,
-    /// Facteur d'échelle sur Y (toujours 1.0 dans ce modèle).
+    /// Y scale factor (always 1.0 in this model).
      sy: f32,
-    /// Cisaillement X→Y (0.0 dans ce modèle).
+    /// X-to-Y shear (0.0 in this model).
      shx: f32,
-    /// Cisaillement Y→X (0.0 dans ce modèle).
+    /// Y-to-X shear (0.0 in this model).
      shy: f32,
 }
 
 impl Transform2D {
-    /// Transformation identité (Facing::Left).
+    /// Identity transformation (`Facing::Left`).
     #[inline]
     pub const fn identity() -> Self {
         Self { sx: 1.0, sy: 1.0, shx: 0.0, shy: 0.0 }
     }
 
-    /// Miroir sur l'axe X (Facing::Right).
+    /// Reflection across the X axis (`Facing::Right`).
     ///
-    /// Inverse la composante X de tout vecteur transformé,
-    /// ce qui reflète le bras entier (segments + pince) de façon homogène.
+    /// Reverses the X component of every transformed vector, reflecting the
+    /// entire arm (segments and gripper) consistently.
     #[inline]
     pub const fn mirror_x() -> Self {
         Self { sx: -1.0, sy: 1.0, shx: 0.0, shy: 0.0 }
     }
 
-    /// Applique la transformation à un vecteur directeur `(vx, vy)`.
+    /// Applies the transformation to a direction vector `(vx, vy)`.
     ///
-    /// Retourne `(vx', vy')` dans l'espace écran.
+    /// Returns `(vx', vy')` in screen space.
     ///
     /// ```text
     /// vx' = sx × vx + shx × vy
@@ -159,13 +158,13 @@ impl Transform2D {
         )
     }
 
-    /// Calcule l'extrémité d'un segment depuis une origine, dans cette transformation.
+    /// Calculates a segment endpoint from an origin using this transformation.
     ///
-    /// `(ox, oy)` : origine en pixels.
-    /// `(lx, ly)` : direction locale (non transformée).
-    /// `len`      : longueur du segment en pixels.
+    /// `(ox, oy)`: origin in pixels.
+    /// `(lx, ly)`: local (untransformed) direction.
+    /// `len`: segment length in pixels.
     ///
-    /// Retourne le point d'arrivée `(x, y)` en pixels.
+    /// Returns the endpoint `(x, y)` in pixels.
     #[inline]
     fn endpoint(self, ox: i32, oy: i32, lx: f32, ly: f32, len: i32) -> (i32, i32) {
         let (dx, dy) = self.apply(lx, ly);
@@ -175,13 +174,13 @@ impl Transform2D {
         )
     }
 
-    /// Calcule le vecteur **perpendiculaire** à un vecteur global `(gx, gy)`.
+    /// Calculates the **perpendicular** to a global vector `(gx, gy)`.
     ///
-    /// Le vecteur `(gx, gy)` doit déjà être dans l'espace écran (post-transformation).
-    /// La perpendiculaire est `(−gy, gx)`, cohérente quel que soit le [`Facing`].
+    /// The vector `(gx, gy)` must already be in screen space (post-transformation).
+    /// Its perpendicular is `(−gy, gx)`, consistent for either [`Facing`].
     ///
-    /// C'est ici que réside le correctif principal par rapport à l'ancienne version :
-    /// `perp` est toujours calculé **après** [`Transform2D::apply`], jamais avant.
+    /// This is the key fix compared with the previous version: `perp` is always
+    /// calculated **after** [`Transform2D::apply`], never before.
     #[inline]
     fn perp(gx: f32, gy: f32) -> (f32, f32) {
         (-gy, gx)
@@ -192,31 +191,31 @@ impl Transform2D {
 // Facing
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Orientation du bras : détermine la transformation globale appliquée au rendu.
+/// Arm orientation, which determines the global transformation applied when rendering.
 ///
-/// [`Facing`] n'est plus un simple `sign()` sur X : il produit une [`Transform2D`]
-/// complète qui garantit la cohérence géométrique de tous les vecteurs
-/// (segments, perpendiculaires, pince).
+/// [`Facing`] is not merely a `sign()` applied to X; it produces a complete
+/// [`Transform2D`] that keeps all vectors geometrically consistent
+/// (segments, perpendiculars, and gripper).
 ///
-/// # Exemple
+/// # Example
 ///
 /// ```rust
 /// let t = Facing::Left.transform();
-/// let (gx, gy) = t.apply(0.5, -0.866); // direction locale → espace écran
-/// let (px, py) = Transform2D::perp(gx, gy); // perpendiculaire correcte
+/// let (gx, gy) = t.apply(0.5, -0.866); // local direction → screen space
+/// let (px, py) = Transform2D::perp(gx, gy); // correct perpendicular
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Facing {
-    /// Bras orienté vers la droite — miroir sur l'axe X.
+    /// Arm facing right — reflection across the X axis.
     Right,
-    /// Bras orienté vers la gauche — transformation identité.
+    /// Arm facing left — identity transformation.
     Left,
 }
 
 
 impl Facing {
 
-    /// Retourne la transformation 2D associée à cette orientation.
+    /// Returns the 2D transformation associated with this orientation.
     /// `Right` → [`Transform2D::mirror_x`], `Left` → [`Transform2D::identity`].
     #[inline]
     pub fn transform(self) -> Transform2D {
@@ -231,15 +230,15 @@ impl Facing {
 // RoboticArm
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Bras robotique industriel 2D à deux segments avec pince pneumatique.
+/// A two-segment 2D industrial robotic arm with a pneumatic gripper.
 ///
-/// Toutes les dimensions sont en **pixels écran** (entiers `i32`).
-/// La position du socle est définie par (`base_x`, `base_y`) où `base_y`
-/// correspond au **niveau du sol** (bas du socle).
+/// All dimensions are in **screen pixels** (`i32` integers).
+/// The base position is defined by (`base_x`, `base_y`), where `base_y`
+/// is the **floor level** (bottom of the base).
 ///
-/// Le rendu est mathématiquement cohérent dans les deux orientations :
-/// [`Facing`] agit comme transformation globale via [`Transform2D`],
-/// et non comme un patch ponctuel sur la composante X.
+/// Rendering is mathematically consistent in both orientations:
+/// [`Facing`] acts as a global transformation via [`Transform2D`],
+/// rather than as a one-off adjustment to the X component.
 ///
 /// # Construction
 ///
@@ -249,65 +248,65 @@ impl Facing {
 ///     .with_gripper(12, 2);
 /// ```
 ///
-/// # Rendu
+/// # Rendering
 ///
 /// ```rust
 /// arm.draw(
 ///     &mut gfx,
-///     0.3,           // angle_shoulder (rad, espace local)
-///     -0.5,          // angle_elbow (rad, relatif)
-///     0.0,           // pince fermée
+///     0.3,           // angle_shoulder (rad, local space)
+///     -0.5,          // angle_elbow (rad, relative)
+///     0.0,           // gripper closed
 ///     Facing::Right,
-///     true,          // on = dessiner
+///     true,          // on = draw
 ///     libm::cosf,
 ///     libm::sinf,
 /// );
 /// ```
 #[derive(Clone, Copy, Debug)]
 pub struct RoboticArm {
-    /// Centre horizontal du socle et de l'épaule (pixels).
+    /// Horizontal center of the base and shoulder (pixels).
     pub base_x: i32,
 
-    /// Niveau du sol : bas du socle industriel (pixels, Y croît vers le bas).
+    /// Floor level: bottom of the industrial base (pixels; Y increases downward).
     pub base_y: i32,
 
-    /// Longueur du segment 1 : épaule → coude (pixels).
+    /// Segment 1 length: shoulder → elbow (pixels).
     pub seg1_len: i32,
 
-    /// Longueur du segment 2 : coude → effecteur (pixels).
+    /// Segment 2 length: elbow → end effector (pixels).
     pub seg2_len: i32,
 
-    /// Largeur du socle industriel (pixels).
+    /// Industrial base width (pixels).
     pub wall_w: i32,
 
-    /// Hauteur du socle industriel (pixels).
+    /// Industrial base height (pixels).
     pub wall_h: i32,
 
-    /// Longueur des tiges de mâchoire, dans l'axe du segment 2 (pixels).
+    /// Length of the gripper jaw rods, along segment 2 (pixels).
     pub gripper_len: i32,
 
-    /// Demi-écartement minimal des mâchoires à pince fermée (pixels).
+    /// Minimum half-gap between the jaws when the gripper is closed (pixels).
     ///
-    /// Correspond à l'épaisseur mécanique d'une mâchoire.
-    /// Utilisé aussi comme taille des embouts de serrage.
+    /// Corresponds to the mechanical thickness of one jaw and is also used
+    /// as the size of the gripping tips.
     pub gripper_thickness: i32,
 }
 
 impl RoboticArm {
-    /// Crée un bras avec le socle et la pince aux valeurs par défaut.
+    /// Creates an arm with the default base and gripper dimensions.
     ///
-    /// Valeurs par défaut :
-    /// - socle : 20 × 6 px
-    /// - pince : longueur 10 px, épaisseur 2 px
+    /// Defaults:
+    /// - base: 20 × 6 px
+    /// - gripper: 10 px long, 2 px thick
     ///
-    /// # Paramètres
+    /// # Parameters
     ///
-    /// | Paramètre  | Description                            |
+    /// | Parameter  | Description                            |
     /// |------------|----------------------------------------|
-    /// | `base_x`   | Centre horizontal du robot (px)        |
-    /// | `base_y`   | Niveau du sol, bas du socle (px)       |
-    /// | `seg1_len` | Longueur épaule → coude (px)           |
-    /// | `seg2_len` | Longueur coude → effecteur (px)        |
+    /// | `base_x`   | Horizontal center of the robot (px)    |
+    /// | `base_y`   | Floor level, bottom of the base (px)   |
+    /// | `seg1_len` | Shoulder → elbow length (px)            |
+    /// | `seg2_len` | Elbow → end effector length (px)        |
     pub fn new(base_x: i32, base_y: i32, seg1_len: i32, seg2_len: i32) -> Self {
         Self {
             base_x,
@@ -321,31 +320,31 @@ impl RoboticArm {
         }
     }
 
-    /// Personnalise la géométrie du socle industriel.
+    /// Customizes the industrial base geometry.
     ///
-    /// Le socle est rendu comme un rectangle plein avec texture de hachures
-    /// diagonales (pas de 4 px) simulant une surface métallique.
+    /// The base is rendered as a filled rectangle with diagonal hatching
+    /// (4 px spacing) to simulate a metal surface.
     ///
-    /// # Paramètres
+    /// # Parameters
     ///
-    /// - `wall_w` : largeur totale du socle (px)
-    /// - `wall_h` : hauteur totale du socle (px) : s'étend vers le haut depuis `base_y`
+    /// - `wall_w`: total base width (px)
+    /// - `wall_h`: total base height (px); extends upward from `base_y`
     pub fn with_wall(mut self, wall_w: i32, wall_h: i32) -> Self {
         self.wall_w = wall_w;
         self.wall_h = wall_h;
         self
     }
 
-    /// Personnalise la géométrie des mâchoires de la pince industrielle.
+    /// Customizes the geometry of the industrial gripper jaws.
     ///
-    /// La pince est de type **pneumatique à translation parallèle** :
-    /// les deux mâchoires glissent perpendiculairement à l'axe du segment 2,
-    /// après transformation globale par [`Transform2D`].
+    /// The gripper is a **pneumatic parallel-translation** type: both jaws
+    /// slide perpendicular to segment 2's axis after the global
+    /// [`Transform2D`] is applied.
     ///
-    /// # Paramètres
+    /// # Parameters
     ///
-    /// - `gripper_len`       : longueur de chaque tige dans l'axe du segment 2 (px)
-    /// - `gripper_thickness` : demi-écartement minimal (pince fermée) et taille des embouts (px)
+    /// - `gripper_len`: length of each rod along segment 2 (px)
+    /// - `gripper_thickness`: minimum half-gap (closed gripper) and tip size (px)
     pub fn with_gripper(mut self, gripper_len: i32, gripper_thickness: i32) -> Self {
         self.gripper_len = gripper_len;
         self.gripper_thickness = gripper_thickness;
@@ -356,65 +355,65 @@ impl RoboticArm {
     // draw
     // ─────────────────────────────────────────────────────────────────────────
 
-    /// Dessine le bras robotique complet dans son état courant.
+    /// Draws the complete robotic arm in its current state.
     ///
-    /// # Algorithme de rendu (ordre d'appel)
+    /// # Rendering algorithm (call order)
     ///
-    /// 1. **Socle** — rectangle plein + hachures diagonales + ligne de sol
-    /// 2. **Cinématique directe** — directions locales transformées par [`Transform2D`]
-    /// 3. **Segments épais** — épaule→coude et coude→effecteur via [`thick_segment`]
-    /// 4. **Articulations** — disques pleins aux trois pivots via [`filled_disk`]
-    /// 5. **Pince** — corps, rail, tiges et embouts via [`segment`]
+    /// 1. **Base** — filled rectangle, diagonal hatching, and floor line
+    /// 2. **Forward kinematics** — local directions transformed by [`Transform2D`]
+    /// 3. **Thick segments** — shoulder→elbow and elbow→end effector via [`thick_segment`]
+    /// 4. **Joints** — filled disks at the three pivots via [`filled_disk`]
+    /// 5. **Gripper** — body, rail, rods, and tips via [`segment`]
     ///
-    /// # Cinématique directe
+    /// # Forward kinematics
     ///
-    /// Les directions sont d'abord exprimées en **espace local** (Facing = Right),
-    /// puis transformées en espace écran via `t = facing.transform()`.
+    /// Directions are first expressed in **local space** (`Facing = Right`),
+    /// then transformed into screen space using `t = facing.transform()`.
     ///
     /// ```text
-    /// local :   lx =  sin(a),  ly = −cos(a)
-    /// écran :  (gx, gy) = t.apply(lx, ly)
+    /// local:  lx = sin(a), ly = −cos(a)
+    /// screen: (gx, gy) = t.apply(lx, ly)
     /// ```
     ///
-    /// La perpendiculaire est calculée **après** transformation :
+    /// The perpendicular is calculated **after** the transformation:
     ///
     /// ```text
     /// (perp_x, perp_y) = Transform2D::perp(gx, gy) = (−gy, gx)
     /// ```
     ///
-    /// Ce point est le correctif central par rapport à l'ancienne version :
-    /// l'ancienne perpendiculaire `(−dir2_y, dir2_x)` était incohérente
-    /// sur `Facing::Left` car `dir2` n'était pas encore dans l'espace global.
+    /// This is the key fix compared with the previous version: the old
+    /// perpendicular `(−dir2_y, dir2_x)` was inconsistent for `Facing::Left`
+    /// because `dir2` was not yet in global space.
     ///
-    /// # Géométrie de la pince
+    /// # Gripper geometry
     ///
     /// ```text
-    ///   end ──── guide      (corps body_len = 3 px dans dir2_g)
+    ///   end ──── guide      (body_len = 3 px along dir2_g)
     ///             │
-    ///         ╠═════╣       (rail de translation, axe perp)
+    ///         ╠═════╣       (translation rail, perpendicular axis)
     ///         ║     ║
-    ///        jaw1  jaw2     (tiges parallèles à dir2_g)
-    ///        [▓]   [▓]      (embouts perpendiculaires à dir2_g)
+    ///        jaw1  jaw2     (rods parallel to dir2_g)
+    ///        [▓]   [▓]      (tips perpendicular to dir2_g)
     /// ```
     ///
-    /// Interpolation linéaire de l'écartement :
+    /// Linear interpolation of the jaw gap:
     ///
     /// ```text
     /// half_gap = half_gap_closed + (half_gap_max − half_gap_closed) × open
     /// ```
     ///
-    /// # Paramètres
+    /// # Parameters
     ///
-    /// | Paramètre          | Type                | Description                              |
+    /// | Parameter          | Type                | Description                              |
     /// |--------------------|---------------------|------------------------------------------|
-    /// | `gfx`              | `&mut Graphics`     | Contexte de rendu SSD1306                |
-    /// | `angle_shoulder`   | `f32`               | Angle épaule depuis la verticale (rad)   |
-    /// | `angle_elbow`      | `f32`               | Rotation relative du coude (rad)         |
-    /// | `gripper_opening`  | `f32`               | Ouverture \[0.0 fermé … 1.0 ouvert max\] |
-    /// | `facing`           | [`Facing`]          | Orientation droite/gauche                |
-    /// | `on`               | `bool`              | `true` = dessiner, `false` = effacer     |
-    /// | `cos_fn`           | `fn(f32) -> f32`    | Cosinus no_std (ex. `libm::cosf`)        |
-    /// | `sin_fn`           | `fn(f32) -> f32`    | Sinus no_std (ex. `libm::sinf`)          |
+    /// | `gfx`              | `&mut Graphics`     | SSD1306 rendering context                |
+    /// | `angle_shoulder`   | `f32`               | Shoulder angle from vertical (rad)        |
+    /// | `angle_elbow`      | `f32`               | Relative elbow rotation (rad)             |
+    /// | `gripper_opening`  | `f32`               | Opening \[0.0 closed … 1.0 fully open\]   |
+    /// | `facing`           | [`Facing`]          | Left/right orientation                    |
+    /// | `on`               | `bool`              | `true` = draw, `false` = erase            |
+    /// | `cos_fn`           | `fn(f32) -> f32`    | `no_std` cosine (e.g. `libm::cosf`)       |
+    /// | `sin_fn`           | `fn(f32) -> f32`    | `no_std` sine (e.g. `libm::sinf`)         |
     pub fn draw<I: I2c>(
         &self,
         gfx: &mut Graphics<'_, I>,
@@ -426,24 +425,24 @@ impl RoboticArm {
         cos_fn: fn(f32) -> f32,
         sin_fn: fn(f32) -> f32,
     ) {
-        // Transformation globale : identité (Right) ou miroir X (Left).
-        // Toutes les directions passent par `t` avant d'être utilisées.
+        // Global transformation: identity (Left) or X reflection (Right).
+        // All directions pass through `t` before use.
         let t = facing.transform();
 
-        // ── 1. SOCLE ─────────────────────────────────────────────────────────
+        // ── 1. BASE ──────────────────────────────────────────────────────────
         //
-        // Le socle n'est pas affecté par le miroir (il est symétrique par
-        // construction et centré sur base_x).
-        // sy = base_y − wall_h  →  sommet du socle = point d'articulation épaule.
+        // The base is unaffected by reflection: it is symmetric by design
+        // and centered on base_x.
+        // sy = base_y − wall_h → top of the base = shoulder joint.
 
         let half = self.wall_w / 2;
         let sx   = self.base_x - half;
         let sy   = self.base_y - self.wall_h;
 
-        // Bloc plein via filled_rect (remplace la double boucle pixel).
+        // Filled block using filled_rect (replaces the double pixel loop).
         filled_rect(gfx, sx, sy, self.wall_w, self.wall_h, on);
 
-        // Texture hachures diagonales (pas = 4 px), inversées pour effet métal.
+        // Diagonal hatching (4 px spacing), inverted for a metallic effect.
         let mut d = 0;
         while d < self.wall_w + self.wall_h {
             for dx in 0..self.wall_w {
@@ -455,88 +454,88 @@ impl RoboticArm {
             d += 4;
         }
 
-        // Ligne de sol légèrement plus large que le socle (±4 px).
+        // Floor line, slightly wider than the base (±4 px).
         segment(gfx, sx - 4, self.base_y, sx + self.wall_w + 4, self.base_y, on);
 
-        // ── 2. CINÉMATIQUE DIRECTE ────────────────────────────────────────────
+        // ── 2. FORWARD KINEMATICS ────────────────────────────────────────────
         //
-        // Étape 1 : direction locale du segment 1 (espace Right, verticale = 0°).
-        //   lx =  sin(a),  ly = −cos(a)
-        // Étape 2 : transformation vers espace écran via t.apply().
+        // Step 1: local direction of segment 1 (Right space, vertical = 0°).
+        //   lx = sin(a), ly = −cos(a)
+        // Step 2: transform into screen space using t.apply().
 
         let shoulder_x = self.base_x;
         let shoulder_y = sy;
 
-        // Segment 1 — direction locale puis globale.
+        // Segment 1 — local direction, then global direction.
         let (l1x, l1y) = (sin_fn(angle_shoulder), -cos_fn(angle_shoulder));
         let (g1x, g1y) = t.apply(l1x, l1y);
         let (elbow_x, elbow_y) = t.endpoint(shoulder_x, shoulder_y, l1x, l1y, self.seg1_len);
 
-        // Segment 2 — angle absolu = somme des deux rotations (espace local).
+        // Segment 2 — absolute angle is the sum of both rotations (local space).
         let abs_angle = angle_shoulder + angle_elbow;
         let (l2x, l2y) = (sin_fn(abs_angle), -cos_fn(abs_angle));
         let (g2x, g2y) = t.apply(l2x, l2y);
         let (end_x, end_y) = t.endpoint(elbow_x, elbow_y, l2x, l2y, self.seg2_len);
 
-        // Perpendiculaire à dir2 dans l'espace global — calculée APRÈS transformation.
-        // C'est ici le correctif mathématique central : perp doit être dérivé
-        // depuis le vecteur déjà transformé (g2x, g2y), pas depuis le vecteur local.
+        // Perpendicular to dir2 in global space, calculated AFTER transformation.
+        // This is the key mathematical fix: perp must be derived from the
+        // already-transformed vector (g2x, g2y), not the local vector.
         let (perp_x, perp_y) = Transform2D::perp(g2x, g2y);
 
-        // g1x/g1y utilisé uniquement pour vérification future (IK, debug).
-        // On le marque explicitement pour éviter l'avertissement unused.
+        // g1x/g1y are reserved for future checks (IK, debugging).
+        // Mark them explicitly to avoid an unused warning.
         let _ = (g1x, g1y);
 
-        // ── 3. SEGMENTS ÉPAIS ────────────────────────────────────────────────
+        // ── 3. THICK SEGMENTS ────────────────────────────────────────────────
         //
-        // thick_segment = ligne principale + décalage d'1 px perpendiculaire
-        // à la direction dominante (voir draw_utils::thick_segment).
+        // thick_segment = main line + 1 px offset, perpendicular to the
+        // dominant direction (see draw_utils::thick_segment).
         thick_segment(gfx, shoulder_x, shoulder_y, elbow_x, elbow_y, on);
         thick_segment(gfx, elbow_x, elbow_y, end_x, end_y, on);
 
-        // ── 4. ARTICULATIONS ─────────────────────────────────────────────────
+        // ── 4. JOINTS ────────────────────────────────────────────────────────
         //
-        // Disques pleins aux trois pivots.
-        // Rayons : épaule r=3, coude r=3, effecteur r=2.
+        // Filled disks at the three pivots.
+        // Radii: shoulder r=3, elbow r=3, end effector r=2.
         filled_disk(gfx, shoulder_x, shoulder_y, 3, on);
         filled_disk(gfx, elbow_x,    elbow_y,    3, on);
         filled_disk(gfx, end_x,      end_y,      2, on);
 
-        // ── 5. PINCE PNEUMATIQUE ─────────────────────────────────────────────
+        // ── 5. PNEUMATIC GRIPPER ─────────────────────────────────────────────
         //
-        // Corps de pince : prolongement de 3 px depuis l'effecteur dans dir2_global.
+        // Gripper body: extends 3 px from the end effector along dir2_global.
         let body_len  = 3_i32;
         let guide_x   = end_x + (g2x * body_len as f32 + 0.5) as i32;
         let guide_y   = end_y + (g2y * body_len as f32 + 0.5) as i32;
         segment(gfx, end_x, end_y, guide_x, guide_y, on);
 
-        // Interpolation de l'écartement courant.
+        // Interpolate the current jaw gap.
         let open           = gripper_opening.clamp(0.0, 1.0);
         let half_gap_max    = (self.gripper_len as f32 * 0.6) as i32;
         let half_gap_closed = self.gripper_thickness;
         let half_gap        = half_gap_closed
             + ((half_gap_max - half_gap_closed) as f32 * open) as i32;
 
-        // Origines des mâchoires — symétrie par rapport à l'axe dir2_global.
+        // Jaw origins — symmetric around the dir2_global axis.
         let jaw1_ox = guide_x + (perp_x * half_gap as f32 + 0.5) as i32;
         let jaw1_oy = guide_y + (perp_y * half_gap as f32 + 0.5) as i32;
         let jaw2_ox = guide_x - (perp_x * half_gap as f32 + 0.5) as i32;
         let jaw2_oy = guide_y - (perp_y * half_gap as f32 + 0.5) as i32;
 
-        // Extrémités des tiges (avancent dans dir2_global).
+        // Rod endpoints (extend along dir2_global).
         let jaw1_ex = jaw1_ox + (g2x * self.gripper_len as f32 + 0.5) as i32;
         let jaw1_ey = jaw1_oy + (g2y * self.gripper_len as f32 + 0.5) as i32;
         let jaw2_ex = jaw2_ox + (g2x * self.gripper_len as f32 + 0.5) as i32;
         let jaw2_ey = jaw2_oy + (g2y * self.gripper_len as f32 + 0.5) as i32;
 
-        // Rail de translation (relie les deux origines).
+        // Translation rail (connects the two origins).
         segment(gfx, jaw1_ox, jaw1_oy, jaw2_ox, jaw2_oy, on);
 
-        // Tiges des mâchoires (parallèles à dir2_global).
+        // Jaw rods (parallel to dir2_global).
         segment(gfx, jaw1_ox, jaw1_oy, jaw1_ex, jaw1_ey, on);
         segment(gfx, jaw2_ox, jaw2_oy, jaw2_ex, jaw2_ey, on);
 
-        // Embouts de serrage (perpendiculaires aux tiges, ±tip px).
+        // Gripping tips (perpendicular to the rods, ±tip px).
         let tip       = self.gripper_thickness.max(2);
         let tip_off_x = (perp_x * tip as f32 + 0.5) as i32;
         let tip_off_y = (perp_y * tip as f32 + 0.5) as i32;
@@ -557,20 +556,20 @@ impl RoboticArm {
     // erase
     // ─────────────────────────────────────────────────────────────────────────
 
-    /// Efface le bras robotique dans l'état donné.
+    /// Erases the robotic arm in the specified state.
     ///
     /// Délègue à [`draw`](Self::draw) avec `on = false`.
-    /// Les paramètres doivent être **identiques** à ceux du dernier `draw`
-    /// pour garantir un effacement pixel-perfect sans artefact.
+    /// Parameters must be **identical** to those of the last `draw` call to
+    /// ensure pixel-perfect erasure without artifacts.
     ///
-    /// # Usage typique (boucle d'animation)
+    /// # Typical usage (animation loop)
     ///
     /// ```rust
-    /// // 1. Effacer l'ancienne position
+    /// // 1. Erase the previous position
     /// arm.erase(&mut gfx, old_shoulder, old_elbow, 0.0, Facing::Right, cosf, sinf);
-    /// // 2. Dessiner la nouvelle
+    /// // 2. Draw the new position
     /// arm.draw(&mut gfx, new_shoulder, new_elbow, 0.0, Facing::Right, true, cosf, sinf);
-    /// // 3. Envoyer le framebuffer
+    /// // 3. Send the framebuffer
     /// gfx.flush().await?;
     /// ```
     pub fn erase<I: I2c>(
@@ -589,7 +588,7 @@ impl RoboticArm {
             angle_elbow,
             gripper_opening,
             facing,
-            false, // on = false → efface
+            false, // on = false → erase
             cos_fn,
             sin_fn,
         );

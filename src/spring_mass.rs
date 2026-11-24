@@ -2,74 +2,74 @@
 // GPL-2.0-or-later
 //! # spring_mass
 //!
-//! Système ressort-masse vertical.
+//! A vertical spring-mass system.
 //!
-//! Le ressort est ancré en haut (`anchor_x`, `anchor_y`) et s'étend
-//! vers le bas. La masse est un rectangle plein dessiné sous le ressort.
+//! The spring is anchored at the top (`anchor_x`, `anchor_y`) and extends
+//! downward. The mass is a filled rectangle drawn below the spring.
 //!
-//! Le ressort est rendu par un zigzag integer-only (alternance ±amplitude).
+//! The spring is rendered as an integer-only zigzag (alternating ±amplitude).
 //!
-//! ## Dessin
+//! ## Rendering
 //!
 //! ```text
-//!  ─── ancrage (trait horizontal 5px)
-//!   |   ← trait droit haut 2px
-//!  /\/\/\/  ← zigzag (N demi-spires, amplitude ±4px)
-//!   |   ← trait droit bas 2px
-//!  ┌───────┐ ← bloc masse (hauteur fixe 6px)
+//!  ─── anchor (5 px horizontal line)
+//!   |   ← 2 px upper straight section
+//!  /\/\/\/  ← zigzag (N half-coils, amplitude ±4 px)
+//!   |   ← 2 px lower straight section
+//!  ┌───────┐ ← mass block (fixed height: 6 px)
 //!  └───────┘
 //! ```
 //!
-//! ## Paramètres
+//! ## Parameters
 //!
-//! | Champ       | Description                                         |
+//! | Field       | Description                                         |
 //! |-------------|-----------------------------------------------------|
-//! | `anchor_x`  | X du milieu de l'ancrage                            |
-//! | `anchor_y`  | Y du point d'ancrage                                |
-//! | `rest_len`  | Longueur du ressort au repos (pixels)               |
-//! | `block_w`   | Largeur du bloc de masse (pixels, centré)           |
-//! | `coils`     | Nombre de demi-spires (défaut : 6)                  |
-//! | `amplitude` | Amplitude du zigzag ±pixels (défaut : 4)            |
+//! | `anchor_x`  | X coordinate of the anchor center                  |
+//! | `anchor_y`  | Y coordinate of the anchor point                   |
+//! | `rest_len`  | Spring rest length in pixels                       |
+//! | `block_w`   | Mass block width in pixels (centered)              |
+//! | `coils`     | Number of half-coils (default: 6)                   |
+//! | `amplitude` | Zigzag amplitude in pixels (default: ±4)            |
 //!
-//! ## Exemple
+//! ## Example
 //!
 //! ```rust,no_run
-//! use embassy_ssd1306_physics::SpringMass;
+//! use hazard3_ssd1306_physics::SpringMass;
 //!
 //! let sm = SpringMass::new(64, 4, 22, 12);
-//! sm.draw(&mut gfx, 6, true);   // ressort étiré de 6px
-//! sm.draw(&mut gfx, -4, true);  // ressort comprimé de 4px
+//! sm.draw(&mut gfx, 6, true);   // extend the spring by 6 px
+//! sm.draw(&mut gfx, -4, true);  // compress the spring by 4 px
 //! ```
 
 use embassy_ssd1306_graphics::Graphics;
 use embedded_hal_async::i2c::I2c;
 use crate::draw_utils::segment;
 
-/// Système ressort-masse vertical.
+/// A vertical spring-mass system.
 #[derive(Clone, Copy, Debug)]
 pub struct SpringMass {
-    /// X du point d'ancrage (milieu).
+    /// X coordinate of the anchor point (center).
     pub anchor_x: i32,
-    /// Y du point d'ancrage (haut du ressort).
+    /// Y coordinate of the anchor point (top of the spring).
     pub anchor_y: i32,
-    /// Longueur au repos en pixels.
+    /// Rest length in pixels.
     pub rest_len: i32,
-    /// Largeur du bloc de masse en pixels.
+    /// Mass block width in pixels.
     pub block_w: i32,
-    /// Nombre de demi-spires du zigzag.
+    /// Number of half-coils in the zigzag.
     pub coils: i32,
-    /// Amplitude ±pixels des dents.
+    /// Zigzag amplitude in pixels.
     pub amplitude: i32,
 }
 
 impl SpringMass {
-    /// Construit un système ressort-masse avec coils=6, amplitude=4.
+    /// Creates a spring-mass system with 6 coils and an amplitude of 4.
     #[inline]
     pub fn new(anchor_x: i32, anchor_y: i32, rest_len: i32, block_w: i32) -> Self {
         Self { anchor_x, anchor_y, rest_len, block_w, coils: 6, amplitude: 4 }
     }
 
-    /// Construit un système avec nombre de spires et amplitude personnalisés.
+    /// Creates a system with a custom number of coils and amplitude.
     #[inline]
     pub fn with_coils(mut self, coils: i32, amplitude: i32) -> Self {
         self.coils = coils;
@@ -77,10 +77,10 @@ impl SpringMass {
         self
     }
 
-    /// Dessine le système.
+    /// Draws the system.
     ///
-    /// - `extension` : élongation signée en pixels (positif = étire, négatif = comprime)
-    /// - `on`        : `true` allume, `false` efface
+    /// - `extension`: signed extension in pixels (positive = stretch, negative = compress)
+    /// - `on`: `true` draws, `false` erases
     pub fn draw<I: I2c>(
         &self,
         gfx: &mut Graphics<'_, I>,
@@ -89,12 +89,12 @@ impl SpringMass {
     ) {
         let total_len = (self.rest_len + extension).max(self.coils + 4);
 
-        // Trait d'ancrage horizontal
+        // Horizontal anchor line
         for dx in -(self.block_w / 2)..=(self.block_w / 2) {
             gfx.pixel(self.anchor_x + dx, self.anchor_y, on);
         }
 
-        // Trait droit haut
+        // Upper straight section
         let spring_top = self.anchor_y + 2;
         segment(gfx, self.anchor_x, self.anchor_y, self.anchor_x, spring_top, on);
 
@@ -116,15 +116,15 @@ impl SpringMass {
                 prev_x = nx;
                 prev_y = ny;
             }
-            // Retour au centre
+            // Return to the center
             segment(gfx, prev_x, prev_y, self.anchor_x, spring_bot, on);
         }
 
-        // Trait droit bas
+        // Lower straight section
         let mass_top = self.anchor_y + total_len;
         segment(gfx, self.anchor_x, spring_bot, self.anchor_x, mass_top, on);
 
-        // Bloc de masse (rectangle plein, hauteur 6px)
+        // Mass block (filled rectangle, 6 px high)
         let block_h = 6i32;
         let half_w = self.block_w / 2;
         for dy in 0..block_h {
@@ -134,7 +134,7 @@ impl SpringMass {
         }
     }
 
-    /// Efface le système.
+    /// Erases the system.
     #[inline]
     pub fn erase<I: I2c>(
         &self,

@@ -44,14 +44,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "embassy-ssd1306-physics"
-version = "0.3.1"
-dependencies = [
- "embassy-ssd1306-graphics",
- "embedded-hal-async",
-]
-
-[[package]]
 name = "embassy-time"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -106,6 +98,14 @@ name = "futures-core"
 version = "0.3.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7e3450815272ef58cec6d564423f6e755e25379b217b0bc688e295ba24df6b1d"
+
+[[package]]
+name = "hazard3-ssd1306-physics"
+version = "0.3.1"
+dependencies = [
+ "embassy-ssd1306-graphics",
+ "embedded-hal-async",
+]
 
 [[package]]
 name = "litrs"

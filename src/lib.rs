@@ -5,39 +5,42 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
-//! # embassy-ssd1306-physics
+//! # hazard3-ssd1306-physics
 //!
-//! Dessins 2D `no_std` d'objets physiques pour écrans OLED SSD1306 (128×64),
-//! construite au-dessus de `[`embassy-ssd1306-graphics`]`.
+//! `no_std` 2D drawings of physical objects for 128×64 SSD1306 OLED displays,
+//! built on top of an SSD1306 graphics layer.
 //!
-//! ## Objets disponibles
+//! This crate is designed for async embedded applications, including the
+//! [Hazard3 project](https://github.com/jorgeandrecastro/Hazard3).
 //!
-//! | Module          | Struct         | Description                                  |
-//! |-----------------|----------------|----------------------------------------------|
-//! | [`robotic_arm`] | [`RoboticArm`] | Bras industriel 2D (socle + pince pneumatique)  |
-//! | [`pendulum`]    | [`Pendulum`]   | Pendule simple (encastrement + tige + masse) |
-//! | [`spring_mass`] | [`SpringMass`] | Système ressort-masse vertical               |
-//! | [`compass`]     | [`Compass`]    | Boussole (cadran + cardinaux + aiguille)     |
-//! | [`gear`]        | [`Gear`]       | Engrenage (dents + moyeu creux)              |
-//! | [`piston`]       | [`Piston`]      | Piston 2D mécanique (chambre + tige guidée)                    |
+//! ## Available objects
 //!
-//! ## Patron sin/cos injecté
+//! | Module          | Struct         | Description                                      |
+//! |-----------------|----------------|--------------------------------------------------|
+//! | [`robotic_arm`] | [`RoboticArm`] | 2D industrial arm (base + pneumatic gripper)     |
+//! | [`pendulum`]    | [`Pendulum`]   | Simple pendulum (mount + rod + mass)             |
+//! | [`spring_mass`] | [`SpringMass`] | Vertical spring-mass system                      |
+//! | [`compass`]     | [`Compass`]    | Compass (dial + cardinal points + needle)        |
+//! | [`gear`]        | [`Gear`]       | Gear (teeth + hollow hub)                        |
+//! | [`piston`]      | [`Piston`]     | 2D mechanical piston (chamber + guided rod)      |
 //!
-//! Chaque `draw()` accepte `cos_fn` et `sin_fn` de type `fn(f32) -> f32`.
-//! Passez votre crate trig `no_std` :
+//! ## Injected sin/cos functions
+//!
+//! Each `draw()` method accepts `cos_fn` and `sin_fn` of type `fn(f32) -> f32`.
+//! Pass in your preferred `no_std` trigonometry functions:
 //!
 //! ```rust,no_run
 //! use embedded_trig_f32 as trig;
 //! arm.draw(&mut gfx, 0.785, -0.524, true, trig::cos, trig::sin);
 //! ```
 //!
-//! ## Ajouter un nouvel objet
+//! ## Adding a new object
 //!
-//! 1. Créer `src/mon_objet.rs` : impl struct + `draw()` + `erase()`
-//! 2. Déclarer `pub mod mon_objet;` dans `src/lib.rs`
-//! 3. Ajouter `pub use mon_objet::MonObjet;` si re-export souhaité
+//! 1. Create `src/my_object.rs` with the struct implementation, `draw()`, and `erase()`.
+//! 2. Declare `pub mod my_object;` in `src/lib.rs`.
+//! 3. Optionally add `pub use my_object::MyObject;` to re-export the type.
 //!
-//! Aucun autre fichier à modifier.
+//! No other files need to be changed.
 
 pub mod draw_utils;
 pub mod robotic_arm;
