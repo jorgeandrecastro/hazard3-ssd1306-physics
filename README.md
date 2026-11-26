@@ -1,6 +1,10 @@
 # hazard3-ssd1306-physics
 
-[![docs](https://docs.rs/hazard3-ssd1306-physics/badge.svg)](https://docs.rs/hazard3-ssd1306-physics/) [![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html) [![physics-objects](https://img.shields.io/badge/physics--objects-hazard3--ssd1306--physics-blue.svg)](https://crates.io/crates/hazard3-ssd1306-physics)
+[![docs](https://docs.rs/hazard3-ssd1306-physics/badge.svg)](https://docs.rs/hazard3-ssd1306-physics/) 
+
+[![physics-objects](https://img.shields.io/badge/physics--objects-hazard3--ssd1306--physics-blue.svg)](https://crates.io/crates/hazard3-ssd1306-physics)
+
+[![License: MIT OR Apache-2.0](https://img.shields.io/badge/License-MIT%20or%20Apache--2.0-blue.svg)](https://opensource.org/licenses/MIT)
 
 `no_std` 2D drawings of physical objects for 128×64 SSD1306 OLED displays.
 
@@ -28,7 +32,7 @@ See the [CHANGELOG.md](CHANGELOG.md) for release notes (version 0.4.0).
 
 ```toml
 [dependencies]
-hazard3-ssd1306-physics = "0.4"
+hazard3-ssd1306-physics = "0.6"
 embedded-trig-f32 = "0.3"
 embedded-hal-async = "1.0"
 ```
@@ -429,8 +433,16 @@ Phasing is automatic: the teeth mesh cleanly at the point of contact.
 
 ---
 
-# License
+## 🛡️ License
 
-GNU GPL v2 or later — see `LICENSE`.
+Licensed under either of:
 
-**Copyright (C) 2026 Jorge Andre Castro**
+    MIT license (http://opensource.org/licenses/MIT)
+
+    Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
+
+at your option.
+
+## 🦅 About
+
+Developed by Jorge Andre Castro.

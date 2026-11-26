@@ -101,7 +101,7 @@ dependencies = [
 
 [[package]]
 name = "hazard3-ssd1306-physics"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "embedded-hal-async",
  "hazard3-ssd1306-graphics",
